@@ -1,3 +1,4 @@
+//main.c
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -15,16 +16,18 @@ static volatile int stop = 0;
 void usage(void)
 {
     fprintf(stderr, "tcping, (C) 2003 folkert@vanheusden.com\n\n");
-    fprintf(stderr, "hostname	hostname (e.g. localhost)\n");
-    fprintf(stderr, "-p portnr	portnumber (e.g. 80)\n");
-    fprintf(stderr, "-c count	how many times to connect\n");
-    fprintf(stderr, "-i interval	delay between each connect\n");
-    fprintf(stderr, "-f		flood connect (no delays)\n");
-    fprintf(stderr, "-q		quiet, only returncode\n\n");
+    fprintf(stderr, "host     (e.g. localhost)\n");
+    fprintf(stderr, "-p port    portnumber (e.g. 80)\n");
+    fprintf(stderr, "-c count    how many times to connect\n");
+    fprintf(stderr, "-i interval    delay between each connect\n");
+    fprintf(stderr, "-f        flood connect (no delays)\n");
+    fprintf(stderr, "-q        quiet, only returncode\n");
+    fprintf(stderr, "-t timeout  connection timeout in seconds\n\n"); 
 }
 
 void handler(int sig)
 {
+    (void)sig; 
     stop = 1;
 }
 
@@ -39,9 +42,9 @@ int main(int argc, char *argv[])
     double min = 999999999999999.0, avg = 0.0, max = 0.0;
     struct addrinfo *resolved;
     int errcode;
-    int seen_addrnotavail;
-
-    while((c = getopt(argc, argv, "h:p:c:i:fq?")) != -1)
+    int seen_addrnotavail = 0;
+    int timeout = 5; 
+    while((c = getopt(argc, argv, "h:p:c:i:f:t:q?")) != -1)
     {
         switch(c)
         {
@@ -63,6 +66,10 @@ int main(int argc, char *argv[])
 
             case 'q':
                 quiet = 1;
+                break;
+                
+            case 't': // ��������-tѡ���case
+                timeout = atoi(optarg);
                 break;
 
             case '?':
@@ -97,7 +104,7 @@ int main(int argc, char *argv[])
         double ms;
         struct timeval rtt;
 
-        if ((errcode = connect_to(resolved, &rtt)) != 0)
+        if ((errcode = connect_to(resolved, &rtt, timeout)) != 0)
         {
             if (errcode != -EADDRNOTAVAIL)
             {
@@ -128,8 +135,8 @@ int main(int argc, char *argv[])
             min = min > ms ? ms : min;
             max = max < ms ? ms : max;
 
-            printf("response from %s:%s, seq=%d time=%.2f ms\n", hostname, portnr, curncount, ms);
-            if (ms > 500) break; /* Stop the test on the first long connect() */
+           
+            printf("Connected to %s[:%s]: seq=%d time=%.2f ms\n", hostname, portnr, curncount + 1, ms);
         }
 
         curncount++;
@@ -140,9 +147,10 @@ int main(int argc, char *argv[])
 
     if (!quiet)
     {
-        printf("--- %s:%s ping statistics ---\n", hostname, portnr);
-        printf("%d responses, %d ok, %3.2f%% failed\n", curncount, ok, (((double)err) / abs(((double)count)) * 100.0));
-        printf("round-trip min/avg/max = %.1f/%.1f/%.1f ms\n", min, avg / (double)ok, max);
+        
+        printf("\n--- %s[:%s] tcping statistics ---\n", hostname, portnr);
+        printf("%d connections, %d successed, %d failed, %.2f%% success rate\n", curncount, ok, err, ((double)ok / curncount * 100.0));
+        printf("minimum = %.2fms, maximum = %.2fms, average = %.2fms\n", min, max, avg / ok);
     }
 
     freeaddrinfo(resolved);
