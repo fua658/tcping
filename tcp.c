@@ -1,3 +1,4 @@
+//tcp.c
 #include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -24,7 +25,7 @@ int lookup(char *host, char *portnr, struct addrinfo **res)
     return getaddrinfo(host, portnr, &hints, res);
 }
 
-int connect_to(struct addrinfo *addr, struct timeval *rtt)
+int connect_to(struct addrinfo *addr, struct timeval *rtt, int timeout)
 {
     int fd;
     struct timeval start;
