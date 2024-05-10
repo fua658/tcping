@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
                 quiet = 1;
                 break;
                 
-            case 't': // ��������-tѡ���case
+            case 't':
                 timeout = atoi(optarg);
                 break;
 
@@ -107,7 +107,8 @@ int main(int argc, char *argv[])
         {
             if (errcode != -EADDRNOTAVAIL)
             {
-                printf("error connecting to host (%d): %s\n", -errcode, strerror(-errcode));
+                printf("error connecting to host %s (%d): %s\n", hostname, -errcode, strerror(-errcode));
+
                 err++;
             }
             else
