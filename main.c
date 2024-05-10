@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
         {
             if (errcode != -EADDRNOTAVAIL)
             {
-                printf("Connected to %s[:%s]: seq=%d  time out!\n", hostname, portnr, curncount + 1);
+                printf("Connected to %s[:%s]: seq=%d time out!\n", hostname, portnr, curncount + 1);
                 err++;
             }
             else
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    printf("Connected to %s[:%s]: seq=%d  time out!\n", hostname, portnr, curncount + 1);
+                    printf("Connected to %s[:%s]: seq=%d time out!\n", hostname, portnr, curncount + 1);
                 }
                 seen_addrnotavail = 1;
             }
