@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/select.h>
 
 #include "tcp.h"
 
@@ -24,49 +25,51 @@ int lookup(char *host, char *portnr, struct addrinfo **res)
     return getaddrinfo(host, portnr, &hints, res);
 }
 
-int connect_to(struct addrinfo *addr, struct timeval *rtt, int timeout)
-{
-    int fd;
-    struct timeval start;
-    int connect_result;
-    const int on = 1;
-    /* int flags; */
-    int rv = 0;
-
-    /* try to connect for each of the entries: */
-    while (addr != NULL)
-    {
-        /* create socket */
-        if ((fd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol)) == -1)
-            goto next_addr0;
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-            goto next_addr1;
-#if 0
-        if ((flags = fcntl(fd, F_GETFL, 0)) == -1)
-            goto next_addr1;
-        if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-            goto next_addr1;
-#endif
-        if (gettimeofday(&start, NULL) == -1)
-            goto next_addr1;
-
-        /* connect to peer */
-        if ((connect_result = connect(fd, addr->ai_addr, addr->ai_addrlen)) == 0)
-        {
-            if (gettimeofday(rtt, NULL) == -1)
-                goto next_addr1;
-            rtt->tv_sec = rtt->tv_sec - start.tv_sec;
-            rtt->tv_usec = rtt->tv_usec - start.tv_usec;
-            close(fd);
-            return 0;
-        }
-
-next_addr1:
-        close(fd);
-next_addr0:
-        addr = addr->ai_next;
+int connect_to(struct addrinfo *addr, struct timeval *rtt, int timeout) {
+    int sockfd = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    if (sockfd < 0) {
+        perror("socket");
+        return -1;
     }
 
-    rv = rv ? rv : -errno;
-    return rv;
+    // Set the socket to non-blocking mode
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+
+    struct timeval start, now;
+    gettimeofday(&start, NULL);
+
+    int result = connect(sockfd, addr->ai_addr, addr->ai_addrlen);
+    if (result < 0 && errno != EINPROGRESS) {
+        perror("connect");
+        close(sockfd);
+        return -1;
+    }
+
+    fd_set write_fds;
+    FD_ZERO(&write_fds);
+    FD_SET(sockfd, &write_fds);
+
+    struct timeval timeout_tv;
+    timeout_tv.tv_sec = timeout;
+    timeout_tv.tv_usec = 0;
+
+    int select_result = select(sockfd + 1, NULL, &write_fds, NULL, &timeout_tv);
+    if (select_result <= 0) {
+        // Connection timed out or error occurred
+        close(sockfd);
+        return -1;
+    }
+
+    if (FD_ISSET(sockfd, &write_fds)) {
+        // Connection succeeded
+        gettimeofday(&now, NULL);
+        timersub(&now, &start, rtt);
+        return 0;
+    } else {
+        // Connection failed
+        close(sockfd);
+        return -1;
+    }
 }
+
