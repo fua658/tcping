@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
     }
 
     if (!quiet)
-        printf("PING %s:%s\n", hostname, portnr);
+        printf("TCPING %s:%s\n", hostname, portnr);
 
     while((curncount < count || count == -1) && stop == 0)
     {
